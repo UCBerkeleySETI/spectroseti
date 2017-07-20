@@ -5,11 +5,11 @@ __author__ = 'nate'
 #
 # location of reduced spectra
 # TODO fill this
-spectra_dir_reduced = '/media/nate/DATA/Spectra/apf/'
+spectra_dir_reduced = '/media/nate/SYSTEM/code/spectra/apf_spec/'
 # location of raw spectra
-spectra_dir_raw = '/media/nate/DATA/Spectra/apf/'
+spectra_dir_raw = '/media/nate/SYSTEM/code/spectra/apf_spec/'
 # location to save image output
-output_png_dir = '/media/nate/DATA/code/output/las_images/apf/'
+output_png_dir = '/media/nate/SYSTEM/code/output/las_images/'
 # Location of iodine order correction coeffs
 iodine_dir = '/media/nate/DATA/Spectra/iodine/'
 # name of database

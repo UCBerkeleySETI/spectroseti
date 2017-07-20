@@ -66,6 +66,8 @@ class APFRedObs(spec.ReducedObs):
         if method=='simpler':
             self.devs = findhigher(self, n_mads, percentile, atlas=self.atlas, method='basic')
             self.devs_set = 1
+        if method == 'MAD':
+            raise NotImplementedError
 
     def red2raw(self, ord, pix):
 

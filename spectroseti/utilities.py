@@ -296,9 +296,12 @@ def savitzky_golay(y, window_size, order, deriv=0, rate=1):
 
 # This is the most effective continuum fit
 def continuum_fit(arr, percentile_kernel = 101,savitzky_kernel = 2001, savitzky_degree=4):
-    pcf = percentile_filter(arr, 50, size=percentile_kernel)
+    # This fixes the singularities
+    fixval = np.abs(np.min(arr) * 2)
+    fix = arr + fixval
+    pcf = percentile_filter(fix, 50, size=percentile_kernel)
     sav = savitzky_golay(pcf, savitzky_kernel, savitzky_degree)
-    return arr/(sav/np.max(sav))
+    return fix/(sav/np.max(sav)) - fixval
 
 
 # ------------------------------------------------------------------------------
@@ -426,35 +429,47 @@ def view_dev(spec,devnum=0,raw=None, save=0):
         plt.close()
         r = spec.run
         o = spec.obs
-        low = spec.devs[devnum][2]+spec.devs[devnum][1]//2-200
-        high = spec.devs[devnum][2]+spec.devs[devnum][1]//2+200
-        centralwav=spec.wavs[ord,(low+high)//2]
-        plt.figure(figsize=(10,7),dpi=80)
-        plt.subplot(311)
-        ax1 = plt.plot(spec.wavs[ord, low:high], spec.counts[ord, low:high])
-        plt.hlines(spec.devs[devnum][3]*1.5,spec.wavs[ord,low],spec.wavs[ord,high])
+        low = spec.devs[devnum][2] + spec.devs[devnum][1]//2 - 200
+        high = spec.devs[devnum][2] + spec.devs[devnum][1]//2 + 200
+        mid = (low+high)//2
+        centralwav = spec.wavs[ord, mid]
+        plt.figure(figsize=(10, 7), dpi=80)
+        ax1 = plt.subplot(311)
+        ax1.plot(spec.wavs[ord, low:high], spec.counts[ord, low:high])
+        ax1.plot(spec.wavs[ord, mid-10:mid+10], spec.counts[ord, mid-10:mid+10], color='r')
+        plt.hlines(spec.devs[devnum][3]*1.5, spec.wavs[ord, low], spec.wavs[ord,high])
         plt.title('Deviation number %(devnum)s in r%(r)s.%(o)s.fits' % locals())
         plt.xlabel('Wavelength (Ang)')
         plt.ylabel('Counts per pixel (Photons)')
-        plt.subplot(312)
-        ax2 = plt.plot(spec.wavs[ord],spec.counts[ord,:-1])
+        ax2 = plt.subplot(312)
+        ax2.plot(spec.wavs[ord],spec.counts[ord,:-1])
+        ax2.plot(spec.wavs[ord, mid - 10:mid + 10], spec.counts[ord, mid - 10:mid + 10], color='r')
         plt.title('Entire spectral order' % locals())
+        ymax = np.max([np.percentile(spec.counts[ord,:-1],99),np.max(spec.counts[ord,mid-10:mid+10])*1.05])
+        ax2.set_ylim([0,ymax])
+        ax2.set_xlim(spec.wavs[ord][0]-2,spec.wavs[ord][-1]+2)
         plt.xlabel('Wavelength (Ang)')
         plt.ylabel('Counts per pixel (Photons)')
         plt.tight_layout()
         if raw:
             plt.subplot(313)
-            subset = raw.retrieve_subset(ord,spec.devs[devnum][2],yradius=15,xradius=80)
-            ax3=plt.imshow(subset,interpolation='nearest', vmax = np.max(subset),
-                           vmin = np.min(subset),cmap='plasma')
+            subplot_xrad = 80
+            subplot_yrad = 15
+            subset = raw.retrieve_subset(ord,mid,yradius=subplot_yrad,xradius=subplot_xrad)
+            subsub = raw.retrieve_subset(ord,mid,yradius=4,xradius=6)
+            ax3=plt.imshow(subset,interpolation='nearest', vmax = np.max(subsub),
+                           vmin = np.min(subset),cmap='plasma',
+                           extent=[spec.wavs[ord,mid-subplot_xrad//2],spec.wavs[ord,mid+subplot_xrad//2],
+                                   0-subplot_yrad//2,subplot_yrad//2], aspect='auto')
             plt.colorbar()
         if save:
-            plt.savefig('/media/nate/DATA/code/output/las_images/apf/'+'r%(r)s.%(o)s_dev%(devnum)s_%(centralwav)s.png' % locals())
+            plt.savefig(apfdefinitions.output_png_dir+'r%(r)s.%(o)s_dev%(devnum)s_%(centralwav)s.png' % locals())
             plt.close()
-        else:
-            plt.show()
     except IndexError:
         print('Out of bounds')
 
 
+def view_raw(raw):
+    # Takes a raw spectrum and plots the entire CCD image
+    plt.imshow(raw.data,vmax=np.percentile(raw.data,99),vmin=np.percentile(raw.data,2),interpolation='nearest')
 

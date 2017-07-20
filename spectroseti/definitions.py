@@ -4,7 +4,7 @@ __author__ = 'nate'
 # relevant for pylaserseti
 #
 # project root dir
-project_root_dir = '/media/nate/DATA/code/APF'
+project_root_dir = '/media/nate/SYSTEM/code/spectroseti'
 # name of database
 database_name = 'test_database'
 # night sky atlas filename

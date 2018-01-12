@@ -4,7 +4,8 @@ from os import listdir
 import numpy as np
 from astropy.io import fits
 from scipy.interpolate import CubicSpline
-
+from sklearn.neighbors import KernelDensity
+from sklearn.cluster import MeanShift, estimate_bandwidth
 
 from scipy.signal import convolve2d, medfilt
 from scipy.ndimage.filters import percentile_filter
@@ -308,7 +309,7 @@ def continuum_fit(arr, percentile_kernel = 101,savitzky_kernel = 2001, savitzky_
 #  Utilities for laser search
 # ------------------------------------------------------------------------------
 
-def getpercentile(order, perc):
+def getpercentile(order, perc, method='meanshift', kernel_bandwidth=100, kernel='epanechnikov'):
     """
     Returns value of 'perc'th percentile
     (usually 75th) count value in 'order'
@@ -316,16 +317,42 @@ def getpercentile(order, perc):
     :param order: Spectral order to compute percentile on
     :param perc: What(th) %ile to compute.
     """
-    nsplits = 1  # Compute percentile piecewise - I have not been
-    maximum_thresh = 0
-    l=len(order)
-    inc = l / nsplits
-    for i in range(nsplits):
-        sub = order[i * inc:(i + 1) * inc]
-        percentile = np.percentile(sub, perc)
-        if maximum_thresh < percentile:
-            maximum_thresh = percentile
-    return maximum_thresh
+    #TODO - add support for piecewise thresholds
+
+    if method == 'percentile':
+
+        nsplits = 1  # Compute percentile piecewise - I have not been
+        maximum_thresh = 0
+        l=len(order)
+        inc = l / nsplits
+        for i in range(nsplits):
+            sub = order[i * inc:(i + 1) * inc]
+            percentile = np.percentile(sub, perc)
+            if maximum_thresh < percentile:
+                maximum_thresh = percentile
+        return maximum_thresh
+    elif method == 'kde':
+        kde = KernelDensity(kernel=kernel, bandwidth=kernel_bandwidth).fit(order)
+
+    elif method == 'meanshift':
+        bandwidth = estimate_bandwidth(order[:,np.newaxis], quantile=0.1)
+        print ('Bandwidth is {0}'.format(bandwidth))
+        ms = MeanShift(bandwidth=bandwidth, bin_seeding=True)
+        ms.fit(order[:,np.newaxis])
+        labels = ms.labels_
+        cluster_centers = ms.cluster_centers_
+        labels_unique = np.unique(labels)
+        n_clusters_ = len(labels_unique)
+        #for k in range(n_clusters_):
+        #    my_members = labels == k
+        #   print "cluster {0}: {1}".format(k, order[:, np.newaxis][my_members, 0])
+        #return cluster_centers[0][0]
+        print(cluster_centers)
+        return np.max([cluster_centers[0][0],cluster_centers[1][0],cluster_centers[2][0]])
+
+    else:
+        raise KeyError
+
 
 
 
@@ -420,7 +447,7 @@ def hires_ignored_wavelengths(wav):
     return np.any(np.logical_xor(np.greater(ignore_lb, wav * onesarr), np.greater(ignore_ub, wav * onesarr)))
 
 
-#  TO ORGANIZE
+#  TODO ORGANIZE, should be in Output
 def view_dev(spec,devnum=0,raw=None, save=0):
     # if Raw is supplied, plots raw postage stamp
     import apfdefinitions
@@ -437,7 +464,10 @@ def view_dev(spec,devnum=0,raw=None, save=0):
         ax1 = plt.subplot(311)
         ax1.plot(spec.wavs[ord, low:high], spec.counts[ord, low:high])
         ax1.plot(spec.wavs[ord, mid-10:mid+10], spec.counts[ord, mid-10:mid+10], color='r')
-        plt.hlines(spec.devs[devnum][3]*1.5, spec.wavs[ord, low], spec.wavs[ord,high])
+        ymax = np.max([np.percentile(spec.counts[ord, :-1], 99), np.max(spec.counts[ord, mid - 10:mid + 10]) * 1.25])
+        ax1.set_ylim([0, ymax])
+        plt.hlines(spec.devs[devnum][3], spec.wavs[ord, low], spec.wavs[ord, high],colors='r',label='meanshift result')
+        plt.hlines(spec.devs[devnum][3]+spec.devs[devnum][3]*5., spec.wavs[ord, low], spec.wavs[ord, high], colors='g',label='Threshold (ms+5*MAD)')
         plt.title('Deviation number %(devnum)s in r%(r)s.%(o)s.fits' % locals())
         plt.xlabel('Wavelength (Ang)')
         plt.ylabel('Counts per pixel (Photons)')
@@ -467,9 +497,12 @@ def view_dev(spec,devnum=0,raw=None, save=0):
             plt.close()
     except IndexError:
         print('Out of bounds')
+    except ValueError:
+        print('Value error caught - probably a mismatch size')
 
 
 def view_raw(raw):
     # Takes a raw spectrum and plots the entire CCD image
     plt.imshow(raw.data,vmax=np.percentile(raw.data,99),vmin=np.percentile(raw.data,2),interpolation='nearest')
+
 

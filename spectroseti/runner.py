@@ -31,7 +31,6 @@ class LaserSearch():
         pass
 
 
-
     def search_one(self, run, observation, load_devs_method='simple',number_mads=5,search_percentile=75):
         # don't need the raw at first
         # raw = apf.APFRawObs(run, observation)

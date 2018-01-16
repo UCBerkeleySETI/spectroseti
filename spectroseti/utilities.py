@@ -296,11 +296,11 @@ def savitzky_golay(y, window_size, order, deriv=0, rate=1):
     return np.convolve(m[::-1], y, mode='valid')
 
 # This is the most effective continuum fit
-def continuum_fit(arr, percentile_kernel = 101,savitzky_kernel = 2001, savitzky_degree=4):
+def continuum_fit(arr, percentile_kernel = 101,savitzky_kernel = 2001, savitzky_degree=4, perc=50):
     # This fixes the singularities
     fixval = np.abs(np.min(arr) * 2)
     fix = arr + fixval
-    pcf = percentile_filter(fix, 50, size=percentile_kernel)
+    pcf = percentile_filter(fix, perc, size=percentile_kernel)
     sav = savitzky_golay(pcf, savitzky_kernel, savitzky_degree)
     return fix/(sav/np.max(sav)) - fixval
 

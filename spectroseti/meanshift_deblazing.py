@@ -16,7 +16,8 @@ def meanshift_trend(spec,order):
     bstar1 = fits.open('/media/nate/DATA/Spectra/apf_bstar/ralh.272.fits')[0].data
     # shoudl take an order, deblaze it(B star), then do a meanshift.
     # then it should turn the main cluster into a continuum, meadian fit this, divide by it
-    bstarfixed = spec[order, :] / util.savitzky_golay(sg.medfilt(bstar1[order, :], kernel_size=501), 51, 4)
+    corrector_value = 100
+    bstarfixed = (spec[order, :]+1) / util.savitzky_golay(sg.medfilt(bstar1[order, :]+1, kernel_size=501), 51, 4)
 
     bandwidth = estimate_bandwidth(bstarfixed[:,np.newaxis], quantile=0.1)
     ms = MeanShift(bandwidth=bandwidth, bin_seeding=True)

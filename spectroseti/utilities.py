@@ -9,6 +9,7 @@ from sklearn.cluster import MeanShift, estimate_bandwidth
 
 from scipy.signal import convolve2d, medfilt
 from scipy.ndimage.filters import percentile_filter
+import scipy.signal as sg
 import matplotlib.pyplot as plt
 
 __author__ = 'nate'
@@ -298,11 +299,34 @@ def savitzky_golay(y, window_size, order, deriv=0, rate=1):
 # This is the most effective continuum fit
 def continuum_fit(arr, percentile_kernel = 101,savitzky_kernel = 2001, savitzky_degree=4, perc=50):
     # This fixes the singularities
-    fixval = np.abs(np.min(arr) * 2)
+    fixval = np.max([np.abs(np.min(arr) * 2),1.])
     fix = arr + fixval
     pcf = percentile_filter(fix, perc, size=percentile_kernel)
     sav = savitzky_golay(pcf, savitzky_kernel, savitzky_degree)
     return fix/(sav/np.max(sav)) - fixval
+
+def deblaze(arr, method = 'savitzky', percentile_kernel = 101, savitzky_kernel=2001, savitzky_degree=4, perc=50):
+
+    if method == 'savitzky':
+        continuum_fit(arr, percentile_kernel=percentile_kernel, savitzky_kernel=savitzky_kernel,
+                             savitzky_degree=savitzky_degree, perc=perc)
+    elif method == 'meanshift':
+        median_of_array = np.median(arr)
+        bandwidth = estimate_bandwidth(arr[:, np.newaxis], quantile=0.1)
+        ms = MeanShift(bandwidth=bandwidth, bin_seeding=True)
+        ms.fit(arr[:, np.newaxis])
+        # xvals = np.arange(4608)
+        test = np.array(arr)
+        labels = ms.labels_
+        # Replace the missing values (not at maximal cluster) with median of array values in cluster in original array
+        test[labels != 0] = np.median(test[labels == 0])
+
+        med_test = sg.medfilt(test, kernel_size=101)
+
+        return arr / med_test * median_of_array
+    else:
+        raise KeyError('The deblaze method you have passed is not implemented. Please pick from savitzky, bstar, and meanshift')
+
 
 
 # ------------------------------------------------------------------------------
@@ -467,7 +491,7 @@ def view_dev(spec,devnum=0,raw=None, save=0):
         ymax = np.max([np.percentile(spec.counts[ord, :-1], 99), np.max(spec.counts[ord, mid - 10:mid + 10]) * 1.25])
         ax1.set_ylim([0, ymax])
         plt.hlines(spec.devs[devnum][3], spec.wavs[ord, low], spec.wavs[ord, high],colors='r',label='meanshift result')
-        plt.hlines(spec.devs[devnum][3]+spec.devs[devnum][3]*5., spec.wavs[ord, low], spec.wavs[ord, high], colors='g',label='Threshold (ms+5*MAD)')
+        plt.hlines(spec.devs[devnum][3]+spec.devs[devnum][4]*5., spec.wavs[ord, low], spec.wavs[ord, high], colors='g',label='Threshold (ms+5*MAD)')
         plt.title('Deviation number %(devnum)s in r%(r)s.%(o)s.fits' % locals())
         plt.xlabel('Wavelength (Ang)')
         plt.ylabel('Counts per pixel (Photons)')
@@ -506,3 +530,14 @@ def view_raw(raw):
     plt.imshow(raw.data,vmax=np.percentile(raw.data,99),vmin=np.percentile(raw.data,2),interpolation='nearest')
 
 
+
+# from Eelco Hoogendoorn on stackoverflow
+# https://stackoverflow.com/questions/21030391/how-to-normalize-an-array-in-numpy
+def normalized(a, axis=-1, order=2):
+    l2 = np.atleast_1d(np.linalg.norm(a, order, axis))
+    l2[l2==0] = 1
+    return a / np.expand_dims(l2, axis)
+
+def median_of_one(arr):
+    med = np.median(arr)
+    return arr/med

@@ -36,7 +36,7 @@ class APFRedObs(spec.ReducedObs):
         self.loadobservation(run, obs)
         self.atlas = atlas
 
-    def loadobservation(self, run, obs):
+    def loadobservation(self, run, obs, deblaze=0):
         """
         Load a reduced APF spectrum into object params
         :param run: 3 character string, i.e. 'aii', denoting observing run
@@ -53,10 +53,36 @@ class APFRedObs(spec.ReducedObs):
             self.wav = fits.open(defs.project_root_dir+apfdefs.apf_wavs)
             self.wavs = self.wav[0].data
             self.counts = self.dat[0].data
-            self.counts = np.apply_along_axis(utilities.continuum_fit, 1, self.dat[0].data)
+            if deblaze:
+                self.deblaze_orders('savitzky')
+
         except IOError:
             self.dat = None
             print('Fatal Error - r%(run)s.%(obs)s.fits not found!' % locals())
+
+    def deblaze_orders(self,method='meanshift', percentile_kernel = 101, savitzky_kernel=2001,
+                       savitzky_degree=4, perc=50, bstar_correction=None):
+        if method == 'savitzky':
+            deblaze = lambda x: utilities.deblaze(x, method='savitzky', percentile_kernel=percentile_kernel,
+                                                  savitzky_kernel=savitzky_kernel,
+                                                  savitzky_degree=savitzky_degree, perc=perc)
+            self.counts = np.apply_along_axis(deblaze, 1, self.dat[0].data)
+        elif method == 'bstar':
+            if not bstar_correction:
+                bstar_correction = np.load(defs.project_root_dir+apfdefs.bstar_correction_dir)
+            self.counts = self.counts / bstar_correction
+
+        # Meanshift deblaze only really works once another deblaze has been applied
+        elif method == 'meanshift':
+            deblaze = lambda x: utilities.deblaze(x, method='meanshift', percentile_kernel=percentile_kernel,
+                                                  savitzky_kernel=savitzky_kernel,
+                                                  savitzky_degree=savitzky_degree, perc=perc)
+            self.counts = np.apply_along_axis(deblaze, 1, self.dat[0].data)
+        else:
+            raise KeyError(
+                'The deblaze method you have passed is not implemented. Please pick from savitzky, bstar, and meanshift')
+
+
 
     def loaddevs(self,method='simple',n_mads=5,percentile=75):
         if method=='simple':
@@ -133,8 +159,8 @@ class APFRawObs(spec.RawObs):
 
 
 
-
-def populateapfobsdatabase(filename='apf_obs.db'):
+# DEPRECATED
+'''def populateapfobsdatabase(filename='apf_obs.db'):
     filenames = listdir(apfdefs.logsheet_dir)
     log_accumulator = []
     for log in filenames: # Replace with all logsheets
@@ -150,7 +176,7 @@ def populateapfobsdatabase(filename='apf_obs.db'):
         log_accumulator += list(map(lambda x: str.split(run+' '+x,maxsplit=12), logs[i:]))
         f.close()
         length = len(sorted(log_accumulator,key=len, reverse=True)[0])
-        acc_array = np.array([xi+[None]*(length-len(xi)) for xi in log_accumulator])
+        acc_array = np.array([xi+[None]*(length-len(xi)) for xi in log_accumulator])'''
 
 def find_deviations(ords, wavs, order, perc=75, n_mads=5,alt_min_thresh=1, atlas=spec.WavelengthAtlas(), out=[], npix=3, acc=[]):
     """

@@ -10,11 +10,14 @@ __author__ = 'nate'
 
 
 import definitions as defs
-import utilities as utilities
+import utilities as util
 import spectra as spec
 import apf as apf
 import apfdefinitions as apfdefs
-import output
+#import output
+import copy
+import numpy as np
+
 
 
 # highest level laser search class. Should contain helper methods to extract specific targets etc
@@ -22,6 +25,7 @@ class LaserSearch():
 
     raw_directory = apfdefs.spectra_dir_raw
     reduced_directory = apfdefs.spectra_dir_reduced
+    bstar_correction = np.load(defs.project_root_dir + apfdefs.bstar_correction_dir)
 
     # Default initialization
     # sets raw, red directories to those in apf_def
@@ -35,7 +39,26 @@ class LaserSearch():
         # don't need the raw at first
         # raw = apf.APFRawObs(run, observation)
         reduced_spectrum = apf.APFRedObs(run, observation)
+
+        # Now first b-star deblaze
+        reduced_spectrum.deblaze_orders(method='bstar',bstar_correction=self.bstar_correction)
+
+        # Make a copy of the (bstar-only) deblazed spectrum
+        bstar_deblazed = copy.deepcopy(reduced_spectrum)
+
+        # Meanshift deblaze the reduced spectrum
+        reduced_spectrum.deblaze_orders(method='meanshift')
+
+        # Load deviations with the meanshift method
+        # loaddevs -> findhigher -> find_deviations -> getpercentile (has meanshift method)
         reduced_spectrum.loaddevs(method=load_devs_method,n_mads=number_mads,percentile=search_percentile)
+
+        # Here we go back and check the bstar spectrum for the same positives
+        # One way to proceed is:
+        #   compute perc from bstar_deblazed
+        #   compute thresh
+        #   ensure three pixels are > perc_b+n_mads*thresh_b
+
         return reduced_spectrum
 
 
@@ -43,7 +66,12 @@ class LaserSearch():
         # observations expects a tuple of run,obs pairs
 
         # setup directories, filenames, local accumulator variables etc
+        if stats:
+            positive_accumulator = np.zeros(79)
+
         if output_pngs or logfile:
+
+
             pass
 
         # a little pseudocodey
@@ -54,7 +82,13 @@ class LaserSearch():
 
             if output_pngs:
                 # generate and save all output
-
+                raw = None
+                try:
+                    raw = apf.APFRawObs(run,obs)
+                except:
+                    raw = None
+                for i in range(len(reduced_spectrum.devs)):
+                    util.view_dev(reduced_spectrum, devnum=i, raw=raw, save=1)
                 pass
 
             #TODO this is first priority

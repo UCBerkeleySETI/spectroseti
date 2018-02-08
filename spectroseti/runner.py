@@ -40,15 +40,16 @@ class LaserSearch():
         # raw = apf.APFRawObs(run, observation)
         reduced_spectrum = apf.APFRedObs(run, observation)
 
-        # Now first b-star deblaze
-        reduced_spectrum.deblaze_orders(method='bstar',bstar_correction=self.bstar_correction)
+        # Now first deblaze (Savizky works better on lower orders than b-star)
+        #reduced_spectrum.deblaze_orders(method='bstar',bstar_correction=self.bstar_correction)
+        reduced_spectrum.deblaze_orders(method='savitzky')
 
         # Make a copy of the (bstar-only) deblazed spectrum
-        bstar_deblazed = copy.deepcopy(reduced_spectrum)
-
+        #bstar_deblazed = copy.deepcopy(reduced_spectrum)
+        print('before meanshift db')
         # Meanshift deblaze the reduced spectrum
         reduced_spectrum.deblaze_orders(method='meanshift')
-
+        print('after meanshift db')
         # Load deviations with the meanshift method
         # loaddevs -> findhigher -> find_deviations -> getpercentile (has meanshift method)
         reduced_spectrum.loaddevs(method=load_devs_method,n_mads=number_mads,percentile=search_percentile)
@@ -88,6 +89,7 @@ class LaserSearch():
                 except:
                     raw = None
                 for i in range(len(reduced_spectrum.devs)):
+                    # TODO pass down a folder here for saving the output
                     util.view_dev(reduced_spectrum, devnum=i, raw=raw, save=1)
                 pass
 

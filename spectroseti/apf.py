@@ -66,9 +66,11 @@ class APFRedObs(spec.ReducedObs):
             deblaze = lambda x: utilities.deblaze(x, method='savitzky', percentile_kernel=percentile_kernel,
                                                   savitzky_kernel=savitzky_kernel,
                                                   savitzky_degree=savitzky_degree, perc=perc)
-            self.counts = np.apply_along_axis(deblaze, 1, self.dat[0].data)
+            self.counts = np.apply_along_axis(deblaze, 1, self.counts)
         elif method == 'bstar':
-            if not bstar_correction:
+            try:
+                bstar_correction.shape
+            except AttributeError:
                 bstar_correction = np.load(defs.project_root_dir+apfdefs.bstar_correction_dir)
             self.counts = self.counts / bstar_correction
 
@@ -77,7 +79,7 @@ class APFRedObs(spec.ReducedObs):
             deblaze = lambda x: utilities.deblaze(x, method='meanshift', percentile_kernel=percentile_kernel,
                                                   savitzky_kernel=savitzky_kernel,
                                                   savitzky_degree=savitzky_degree, perc=perc)
-            self.counts = np.apply_along_axis(deblaze, 1, self.dat[0].data)
+            self.counts = np.apply_along_axis(deblaze, 1, self.counts)
         else:
             raise KeyError(
                 'The deblaze method you have passed is not implemented. Please pick from savitzky, bstar, and meanshift')
@@ -116,6 +118,7 @@ class APFRawObs(spec.RawObs):
 
     def __init__(self, run, obs):
         self.load(run,obs)
+        self.raw_red_correspondence = np.load(defs.project_root_dir + apfdefs.correspondence)
 
     def load(self, run, obs):
         """Load a raw observation."""
@@ -128,11 +131,11 @@ class APFRawObs(spec.RawObs):
         ax.imshow(np.transpose(raw[0].data), vmin=np.min(raw[0].data), vmax=np.percentile(raw[0].data, 85))
 
     def red2raw(self, ord, pix):
-        try:
+        '''try:
             if self.raw_red_correspondence == None:
-                self.raw_red_correspondence = np.load(apfdefs.correspondence)
+                self.raw_red_correspondence = np.load(defs.project_root_dir + apfdefs.correspondence)
         except IOError:
-            print('Fatal Error - apf order correspondence mask not found!')
+            print('Fatal Error - apf order correspondence mask not found!')'''
 
         return self.raw_red_correspondence[ord, pix]
 
@@ -146,7 +149,7 @@ class APFRawObs(spec.RawObs):
         yhigh = self.rawdims[1] if central + yradius > self.rawdims[1] else central + yradius
         xlow = 0 if index - xradius < 0 else index - xradius
         xhigh = self.rawdims[0] if index - xradius > self.rawdims[0] else index + xradius
-        return self.data[ylow:yhigh,xlow:xhigh]
+        return self.data[int(ylow):int(yhigh),int(xlow):int(xhigh)]
 
 
 
@@ -178,7 +181,9 @@ class APFRawObs(spec.RawObs):
         length = len(sorted(log_accumulator,key=len, reverse=True)[0])
         acc_array = np.array([xi+[None]*(length-len(xi)) for xi in log_accumulator])'''
 
-def find_deviations(ords, wavs, order, perc=75, n_mads=5,alt_min_thresh=1, atlas=spec.WavelengthAtlas(), out=[], npix=3, acc=[]):
+
+# Turned off AltMinThresh for now. See what this does.
+def find_deviations(ords, wavs, order, perc=75, n_mads=5,alt_min_thresh=0, atlas=spec.WavelengthAtlas(), out=[], npix=3, acc=[]):
     """
         The meat of the laser search pipeline, this function finds all pixel regions that deviate
         over an entire spectroscopic order.

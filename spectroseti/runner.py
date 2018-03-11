@@ -5,6 +5,7 @@
 #
 # Extends class definitions in spectra.py for the High Resolution Echelle
 #    spectrometer at the WM Keck observatory.
+import spectroseti.output
 
 __author__ = 'nate'
 
@@ -17,7 +18,6 @@ import apfdefinitions as apfdefs
 #import output
 import copy
 import numpy as np
-
 
 
 # highest level laser search class. Should contain helper methods to extract specific targets etc
@@ -65,7 +65,6 @@ class LaserSearch():
 
     def search_multiple(self, observations, output_pngs=0, logfile=0, db_write=0, stats=0):
         # observations expects a tuple of run,obs pairs
-
         # setup directories, filenames, local accumulator variables etc
         if stats:
             positive_accumulator = np.zeros(79)
@@ -90,7 +89,7 @@ class LaserSearch():
                     raw = None
                 for i in range(len(reduced_spectrum.devs)):
                     # TODO pass down a folder here for saving the output
-                    util.view_dev(reduced_spectrum, devnum=i, raw=raw, save=1)
+                    spectroseti.output.view_dev(reduced_spectrum, devnum=i, raw=raw, save=1)
                 pass
 
             #TODO this is first priority

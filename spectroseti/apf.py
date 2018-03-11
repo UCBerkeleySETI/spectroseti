@@ -267,6 +267,7 @@ def find_deviations_basic(ords, wavs, order, perc=75, n_mads=5,alt_min_thresh=1,
                      float(np.median(deviation_pixels)), float(wavs[order][midpt])])
     return out
 
+
 def findhigher(obs, n_mads, perc, atlas=spec.WavelengthAtlas(),method='original'):
     """
     Finds potential laser candidates using Median
@@ -302,6 +303,7 @@ def findhigher(obs, n_mads, perc, atlas=spec.WavelengthAtlas(),method='original'
         return out
     else:
         raise NameError('Incorrect method keyword')
+
 
 def deblaze(arr):
     l = len(arr[:-1])

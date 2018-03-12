@@ -276,7 +276,7 @@ def savitzky_golay(y, window_size, order, deriv=0, rate=1):
     try:
         window_size = np.abs(np.int(window_size))
         order = np.abs(np.int(order))
-    except ValueError, msg:
+    except ValueError:
         raise ValueError("window_size and order have to be of type int")
     if window_size % 2 != 1 or window_size < 1:
         raise TypeError("window_size size must be a positive odd number")
@@ -371,8 +371,15 @@ def getpercentile(order, perc, method='meanshift', kernel_bandwidth=100, kernel=
         #   print "cluster {0}: {1}".format(k, order[:, np.newaxis][my_members, 0])
         #return cluster_centers[0][0]
         # print(cluster_centers)
-        return np.max([cluster_centers[0][0],cluster_centers[1][0],cluster_centers[2][0]])
-
+        # TODO Determine why there is a index error ocurring here - should there be more than 3 clusters
+        # or is this normal behavior?
+        try:
+            return np.max([cluster_centers[0][0],cluster_centers[1][0],cluster_centers[2][0]])
+        except IndexError:
+            try:
+                return np.max([cluster_centers[0][0], cluster_centers[1][0]])
+            except IndexError:
+                return cluster_centers[0][0]
     else:
         raise KeyError
 

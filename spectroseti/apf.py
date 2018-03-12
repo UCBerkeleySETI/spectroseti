@@ -22,6 +22,7 @@ import apfdefinitions as apfdefs
 import definitions as defs
 import utilities as utilities
 import spectra as spec
+from tqdm import tqdm
 
 
 
@@ -88,11 +89,11 @@ class APFRedObs(spec.ReducedObs):
 
     def loaddevs(self,method='simple',n_mads=5,percentile=75):
         if method=='simple':
-            self.devs = findhigher(self, n_mads, percentile, atlas=self.atlas)
+            self.devs, self.percentiles_and_thresholds = findhigher(self, n_mads, percentile, atlas=self.atlas)
             self.devs_set = 1
         # An even simpler method that is only 4 pix >1.3*med
         if method=='simpler':
-            self.devs = findhigher(self, n_mads, percentile, atlas=self.atlas, method='basic')
+            self.devs, self.percentiles_and_thresholds  = findhigher(self, n_mads, percentile, atlas=self.atlas, method='basic')
             self.devs_set = 1
         if method == 'MAD':
             raise NotImplementedError
@@ -292,15 +293,17 @@ def findhigher(obs, n_mads, perc, atlas=spec.WavelengthAtlas(),method='original'
     cts = obs.counts
     wavs = obs.wavs
     if method=='original':
-        for i in range(79):
+        print('Searching order-by-order...')
+        for i in tqdm(range(79), leave=False, miniters=8):
             out = find_deviations(cts, wavs, i, perc=perc, n_mads=n_mads,
                                   atlas=atlas, out=out, acc=per_thr_accumulator)
-        return out
+        return out, per_thr_accumulator
     elif method=='basic':
-        for i in range(79):
+        print('Searching order-by-order...')
+        for i in tqdm(range(79), leave=False, miniters=8):
             out = find_deviations_basic(cts, wavs, i, perc=perc, n_mads=n_mads,
                                   atlas=atlas, out=out, acc=per_thr_accumulator,npix=4)
-        return out
+        return out, per_thr_accumulator
     else:
         raise NameError('Incorrect method keyword')
 

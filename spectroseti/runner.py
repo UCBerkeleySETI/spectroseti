@@ -18,6 +18,7 @@ import apfdefinitions as apfdefs
 #import output
 import copy
 import numpy as np
+from tqdm import tqdm
 
 
 # highest level laser search class. Should contain helper methods to extract specific targets etc
@@ -46,10 +47,9 @@ class LaserSearch():
 
         # Make a copy of the (bstar-only) deblazed spectrum
         #bstar_deblazed = copy.deepcopy(reduced_spectrum)
-        print('before meanshift db')
+        print('Beginning Meanshift deblazing')
         # Meanshift deblaze the reduced spectrum
         reduced_spectrum.deblaze_orders(method='meanshift')
-        print('after meanshift db')
         # Load deviations with the meanshift method
         # loaddevs -> findhigher -> find_deviations -> getpercentile (has meanshift method)
         reduced_spectrum.loaddevs(method=load_devs_method,n_mads=number_mads,percentile=search_percentile)
@@ -87,7 +87,9 @@ class LaserSearch():
                     raw = apf.APFRawObs(run,obs)
                 except:
                     raw = None
-                for i in range(len(reduced_spectrum.devs)):
+                ndev = len(reduced_spectrum.devs)
+                print('Writing output images to '+ apfdefs.output_png_dir)
+                for i in tqdm(range(ndev), miniters=int(ndev/10)):
                     # TODO pass down a folder here for saving the output
                     spectroseti.output.view_dev(reduced_spectrum, devnum=i, raw=raw, save=1)
                 pass
